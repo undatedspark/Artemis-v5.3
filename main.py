@@ -5,22 +5,23 @@ import subprocess
 import sys
 import datetime
 from colorama import Fore, Style, init
-# Importamos a purga diretamente do seu tools.py otimizado
-from tools import obter_stats_sistema, purgar_memoria 
+# 🟢 Importamos a lógica de monitoramento e limpeza do seu tools.py
+from tools import obter_stats_sistema, purgar_memoria, VERSION 
 
-# Inicializa as cores
+# Inicializa as cores no terminal (necessário para Windows)
 init(autoreset=True)
 
-VERSION = "5.3 | OVERSEER"
+# Define o arquivo de log para auditoria do sistema
 LOG_FILE = "artemis_session.log"
 
 def registrar_log(mensagem):
+    """Registra eventos importantes para análise posterior (Debug)."""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] {mensagem}\n")
 
 def limpar_cache_total():
-    """Limpa resíduos e arquivos temporários da v5.3."""
+    """🟢 Varre a pasta do projeto e remove arquivos temporários (fotos, áudios, docs)."""
     extensoes = ['*.png', '*.docx', '*.xlsx', '*.pptx', '*.jpg', '*.ogg', '*.mp3']
     removidos = 0
     for ext in extensoes:
@@ -34,9 +35,10 @@ def limpar_cache_total():
         print(f"{Fore.MAGENTA}[ CLEANER ] {removidos} arquivos de cache purgados.")
 
 def exibir_banner():
+    """🟢 Renderiza a interface visual do terminal (Interface Overseer)."""
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        L = os.get_terminal_size().columns
+        L = os.get_terminal_size().columns # Ajusta o banner ao tamanho da janela
     except:
         L = 80
 
@@ -46,7 +48,7 @@ def exibir_banner():
         r"  / /| | / /_/ / / /  / __/  / /|_/ / / / \__ \ ",
         r" / ___ |/ _, _/ / /  / /___ / /  / /_/ / ___/ / ",
         r"/_/  |_/_/ |_| /_/  /_____//_/  /_//___//____/  ",
-        f"         CORE INTERFACE - v{VERSION}"
+        f"         CORE INTERFACE - {VERSION}"
     ]
 
     print("\n")
@@ -58,8 +60,8 @@ def exibir_banner():
     print(f"{Fore.LIGHTBLACK_EX}{div.center(L)}")
     
     try:
+        # 🟢 Painel de Diagnóstico em tempo real
         diag = obter_stats_sistema()
-        # Lógica de cores para a RAM (Aviso visual para o Criador)
         cor_ram = Fore.RED if diag['ram'] > 85 else Fore.YELLOW
         
         cpu_bar = "█" * int(diag['cpu'] / 10) + "░" * (10 - int(diag['cpu'] / 10))
@@ -77,29 +79,32 @@ def exibir_banner():
     print(f"{Fore.LIGHTBLACK_EX}{div.center(L)}\n")
 
 def executar_nucleo():
+    """🟢 Inicializa o script do Telegram e monitora se ele vai 'crashear'."""
     if not os.path.exists("artemis_telegram.py"):
-        print(f"{Fore.RED}[ FATAL ] Script principal não encontrado.")
+        print(f"{Fore.RED}[ FATAL ] Script artemis_telegram.py não encontrado.")
         return False
 
-    print(f"{Fore.CYAN}[ SYSTEM ] Inicializando Artemis v5.3...")
+    print(f"{Fore.CYAN}[ SYSTEM ] Inicializando {VERSION}...")
     registrar_log("BOOT: Iniciando núcleo.")
     
+    # 🟢 Inicia o bot como um sub-processo independente
     processo = subprocess.Popen([sys.executable, "artemis_telegram.py"])
     
     try:
         while processo.poll() is None:
-            time.sleep(2) # Aumentamos o delay de checagem para poupar CPU
+            time.sleep(5) # Delay de checagem otimizado para não pesar na CPU
             
         if processo.returncode == 0:
             print(f"\n{Fore.YELLOW}[ SHUTDOWN ] Sessão encerrada normalmente.")
             return False 
         else:
+            # 🟢 Auto-Recovery: se o bot cair, o Overseer o levanta novamente
             print(f"\n{Fore.RED}[ CRASH ] O núcleo colapsou. Reiniciando protocolos...")
             registrar_log(f"CRASH: Saída {processo.returncode}")
             return True 
             
     except KeyboardInterrupt:
-        print(f"\n{Fore.MAGENTA}[ SIGNAL ] Encerrando por comando do Criador.")
+        print(f"\n{Fore.MAGENTA}[ SIGNAL ] Encerrando por comando do Criador (Ctrl+C).")
         processo.terminate()
         return False
 
@@ -108,16 +113,18 @@ if __name__ == "__main__":
     while reiniciar:
         exibir_banner()
         
-        # PROTOCOLO DE PURGA ANTES DO BOOT
+        # 🟢 Protocolo de Limpeza Pré-Boot
         stats = obter_stats_sistema()
         if stats['ram'] > 80:
-            print(f"{Fore.MAGENTA}[ AUTO-RECOVERY ] RAM alta detectada. Purgando lixo de memória...")
+            print(f"{Fore.MAGENTA}[ AUTO-RECOVERY ] RAM alta detectada. Purgando lixo...")
             purgar_memoria()
             
         limpar_cache_total()
+        
+        # 🟢 Inicia o loop de execução
         reiniciar = executar_nucleo()
         
         if reiniciar:
-            time.sleep(5)
+            time.sleep(5) # Espera 5 segundos antes de tentar o reboot
 
-    print(f"{Fore.CYAN}Sessão Artemis v5.3 Finalizada.")
+    print(f"{Fore.CYAN}Sessão {VERSION} Finalizada.")
