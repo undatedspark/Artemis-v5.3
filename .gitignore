@@ -1,0 +1,10 @@
+config.py
+__pycache__/
+*.log
+*.png
+*.mp3
+*.docx
+*.xlsx
+*.pptx
+*.ogg
+*usuarios_memoria.json
