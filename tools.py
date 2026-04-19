@@ -124,25 +124,57 @@ def criar_word(conteudo, nome_arquivo="documento_artemis.docx"):
     return nome_arquivo
 
 def criar_excel(dados_texto, nome_arquivo="planilha_artemis.xlsx"):
-    """Converte texto separado por vírgulas em Planilha Excel."""
+    """Cria Excel usando openpyxl puro (mais leve e compatível com Python 3.14)."""
     try:
-        import pandas as pd # 🟢 Pandas é pesado, só entra em cena sob demanda
+        from openpyxl import Workbook # 🟢 Importa apenas o necessário
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Relatório Artemis"
+
+        # 🟢 Transforma o texto em linhas e colunas
         linhas = [linha.split(',') for linha in dados_texto.strip().split('\n')]
-        df = pd.DataFrame(linhas)
-        df.to_excel(nome_arquivo, index=False, header=False)
-        return nome_arquivo
-    except:
+        
+        for r_idx, linha in enumerate(linhas, start=1):
+            for c_idx, valor in enumerate(linha, start=1):
+                # Escreve o valor na célula e remove espaços extras
+                ws.cell(row=r_idx, column=c_idx, value=valor.strip())
+
+        wb.save(nome_arquivo)
+        
+        if os.path.exists(nome_arquivo):
+            print(f"{Fore.GREEN}[ SUCCESS ] Planilha gerada com openpyxl.")
+            return nome_arquivo
+        return None
+    except Exception as e:
+        print(f"{Fore.RED}[ ERRO EXCEL ] Detalhes: {e}")
         return None
 
-def criar_pptx(titulo, corpo, nome_arquivo="apresentacao_artemis.pptx"):
-    """Gera slides de apresentação rapidamente."""
-    from pptx import Presentation
-    prs = Presentation()
-    slide = prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text = titulo
-    slide.placeholders[1].text = corpo
-    prs.save(nome_arquivo)
-    return nome_arquivo
+def criar_pptx(dados_texto, nome_arquivo="apresentacao_artemis.pptx"):
+    try:
+        from pptx import Presentation # 🟢 pip install python-pptx
+        
+        prs = Presentation()
+        
+        # Divide o texto por '--' para criar os slides
+        topicos = dados_texto.split('--')
+        
+        for t in topicos:
+            slide_layout = prs.slide_layouts[1] # Layout padrão com título e corpo
+            slide = prs.slides.add_slide(slide_layout)
+            
+            title = slide.shapes.title
+            content = slide.placeholders[1]
+            
+            # Define o conteúdo do slide
+            title.text = "Artemis v5.3 Intelligence"
+            content.text = t.strip()
+
+        prs.save(nome_arquivo)
+        return nome_arquivo
+    except Exception as e:
+        print(f"[ ERRO PPT ] {e}")
+        return None
 
 # --- 🖥️ MONITORAMENTO DE SISTEMA ---
 def obter_stats_sistema():
