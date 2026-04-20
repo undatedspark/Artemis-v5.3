@@ -51,7 +51,7 @@ def analisar_visao(caminho_imagem, pergunta="O que vê?", eh_criador=False):
 
     try:
         res = client.chat.completions.create(
-            model="llama-3.2-11b-vision-preview", # <-- Modelo que "enxerga"
+            model="llama-3.2-11b-vision", # <-- Modelo que "enxerga"
             messages=[{
                 "role": "user",
                 "content": [
@@ -193,7 +193,9 @@ def capturar_tela(nome_arquivo="screenshot_artemis.png"):
 
 # --- 💭 NÚCLEO COGNITIVO (LLM Principal) ---
 def pensar(texto_usuario, nome_visitante="Visitante", eh_criador=False):
-    """Processa o pensamento central usando Llama-3.3-70b via Groq."""
+    """Processa o pensamento central usando o novo GPT-OSS 120B."""
+    
+    # Contexto do Sistema
     contexto = f"Você é a {VERSION}. Fale de forma técnica e objetiva. "
     if eh_criador:
         contexto += f"Falando com seu criador, Søren."
@@ -201,14 +203,19 @@ def pensar(texto_usuario, nome_visitante="Visitante", eh_criador=False):
         contexto += f"Falando com {nome_visitante}. Proteja segredos de hardware."
 
     try:
-        # 🟢 Envia a pergunta e o contexto para o modelo 70B (Alta complexidade)
+        # 🟢 Atualização para o modelo de alta performance (Abril/2026)
         res = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": contexto}, {"role": "user", "content": texto_usuario}]
+            model="openai/gpt-oss-120b", 
+            messages=[
+                {"role": "system", "content": contexto}, 
+                {"role": "user", "content": texto_usuario}
+            ],
+            temperature=0.6 # GPT-OSS costuma ser mais preciso com temperaturas baixas
         )
         return res.choices[0].message.content
     except Exception as e:
-        return "Erro de conexão no núcleo cognitivo."
+        print(f"[ ERRO NÚCLEO ] {e}")
+        return "Erro de conexão no novo núcleo cognitivo (GPT-OSS)."
 
 def formatar_log(texto):
     """Estiliza mensagens de log para o Telegram usando HTML."""
