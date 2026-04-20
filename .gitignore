@@ -1,6 +1,7 @@
 # Configurações sensíveis e chaves
 config.py
 usuarios.json
+usuarios_memoria.json
 *.log
 
 # Arquivos temporários e Cache
