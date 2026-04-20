@@ -17,6 +17,64 @@ VERSION = "ARTEMIS v5.3 | Overseer Edition"
 # Inicializa o cliente Groq
 client = Groq(api_key=GROQ_KEY)
 
+# --- 📧 MÓDULO DE COMUNICAÇÃO (E-mail SMTP) ---
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+
+import json
+
+# Pega a pasta onde o tools.py está localizado
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PATH_JSON = os.path.join(BASE_DIR, "usuarios.json")
+
+def enviar_email(destinatario, assunto, corpo, anexo=None):
+    try:
+        # Agora ele usa o caminho completo, impossível errar
+        with open(PATH_JSON, "r", encoding="utf-8") as f:
+            dados_config = json.load(f)
+        
+        # 2. Extrai as preferências do perfil principal (Søren)
+        preferencias = dados_config.get("Søren", {}).get("preferencias", {})
+        remetente = preferencias.get("email")
+        senha = preferencias.get("senha_app")
+
+        if not remetente or not senha:
+            print(f"{Fore.RED}[ ERRO ] Credenciais não encontradas no JSON.")
+            return False
+
+        # Configuração da Mensagem (MIME)
+        msg = MIMEMultipart()
+        msg['From'] = remetente
+        msg['To'] = destinatario
+        msg['Subject'] = assunto
+        msg.attach(MIMEText(corpo, 'plain'))
+
+        # Lógica de Anexo (mantida conforme seu código)
+        if anexo and os.path.exists(anexo):
+            with open(anexo, "rb") as f:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(f.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f"attachment; filename={os.path.basename(anexo)}")
+                msg.attach(part)
+
+        # 3. Protocolo SMTP
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls() 
+        server.login(remetente, senha)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"{Fore.GREEN}[ SUCCESS ] E-mail enviado por {remetente}")
+        return True
+
+    except Exception as e:
+        print(f"{Fore.RED}[ ERRO SMTP ] {e}")
+        return False
+    
 # --- 🎤 MÓDULO AUDITIVO (STT - Speech to Text) ---
 def transcrever_audio(caminho_audio):
     """Converte voz (.ogg) em texto usando Whisper-large-v3 via Groq API."""

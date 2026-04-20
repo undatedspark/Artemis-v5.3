@@ -1,10 +1,15 @@
+# Configurações sensíveis e chaves
 config.py
-__pycache__/
+usuarios.json
 *.log
+
+# Arquivos temporários e Cache
+__pycache__/
 *.png
+*.jpg
+*.ogg
 *.mp3
 *.docx
 *.xlsx
 *.pptx
-*.ogg
-*usuarios_memoria.json
+temp_*

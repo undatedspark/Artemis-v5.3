@@ -5,23 +5,24 @@ import subprocess
 import sys
 import datetime
 from colorama import Fore, Style, init
-# 🟢 Importamos a lógica de monitoramento e limpeza do seu tools.py
-from tools import obter_stats_sistema, purgar_memoria, VERSION 
 
-# Inicializa as cores no terminal (necessário para Windows)
+# 🟢 Integração com o seu tools.py
+from tools import obter_stats_sistema, purgar_memoria, VERSION, enviar_email
+
+# Inicializa as cores no terminal
 init(autoreset=True)
 
-# Define o arquivo de log para auditoria do sistema
+# Configurações de Auditoria
 LOG_FILE = "artemis_session.log"
 
 def registrar_log(mensagem):
-    """Registra eventos importantes para análise posterior (Debug)."""
+    """Registra eventos críticos para análise de estabilidade."""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] {mensagem}\n")
 
 def limpar_cache_total():
-    """🟢 Varre a pasta do projeto e remove arquivos temporários (fotos, áudios, docs)."""
+    """Varre o diretório e remove arquivos temporários para otimizar espaço."""
     extensoes = ['*.png', '*.docx', '*.xlsx', '*.pptx', '*.jpg', '*.ogg', '*.mp3']
     removidos = 0
     for ext in extensoes:
@@ -35,10 +36,10 @@ def limpar_cache_total():
         print(f"{Fore.MAGENTA}[ CLEANER ] {removidos} arquivos de cache purgados.")
 
 def exibir_banner():
-    """🟢 Renderiza a interface visual do terminal (Interface Overseer)."""
+    """Interface visual Overseer para o terminal."""
     os.system('cls' if os.name == 'nt' else 'clear')
     try:
-        L = os.get_terminal_size().columns # Ajusta o banner ao tamanho da janela
+        L = os.get_terminal_size().columns
     except:
         L = 80
 
@@ -60,7 +61,7 @@ def exibir_banner():
     print(f"{Fore.LIGHTBLACK_EX}{div.center(L)}")
     
     try:
-        # 🟢 Painel de Diagnóstico em tempo real
+        # Diagnóstico de Hardware
         diag = obter_stats_sistema()
         cor_ram = Fore.RED if diag['ram'] > 85 else Fore.YELLOW
         
@@ -79,28 +80,39 @@ def exibir_banner():
     print(f"{Fore.LIGHTBLACK_EX}{div.center(L)}\n")
 
 def executar_nucleo():
-    """🟢 Inicializa o script do Telegram e monitora se ele vai 'crashear'."""
+    """Gerencia o sub-processo do Telegram e executa o Auto-Recovery."""
     if not os.path.exists("artemis_telegram.py"):
         print(f"{Fore.RED}[ FATAL ] Script artemis_telegram.py não encontrado.")
         return False
 
-    print(f"{Fore.CYAN}[ SYSTEM ] Inicializando {VERSION}...")
+    print(f"{Fore.CYAN}[ SYSTEM ] Inicializando bot...")
     registrar_log("BOOT: Iniciando núcleo.")
     
-    # 🟢 Inicia o bot como um sub-processo independente
+    # Inicia o bot como processo independente
     processo = subprocess.Popen([sys.executable, "artemis_telegram.py"])
     
     try:
         while processo.poll() is None:
-            time.sleep(5) # Delay de checagem otimizado para não pesar na CPU
+            time.sleep(5)
             
         if processo.returncode == 0:
             print(f"\n{Fore.YELLOW}[ SHUTDOWN ] Sessão encerrada normalmente.")
             return False 
         else:
-            # 🟢 Auto-Recovery: se o bot cair, o Overseer o levanta novamente
-            print(f"\n{Fore.RED}[ CRASH ] O núcleo colapsou. Reiniciando protocolos...")
+            # 🔴 LOGICA DE CRASH E ALERTA POR E-MAIL
+            print(f"\n{Fore.RED}[ CRASH ] O núcleo colapsou. Código: {processo.returncode}")
             registrar_log(f"CRASH: Saída {processo.returncode}")
+            
+            # Tenta avisar o criador via SMTP
+            try:
+                enviar_email(
+                    destinatario="gabriel.orph@gmail.com",
+                    assunto="⚠️ Alerta Crítico: Artemis v5.3 Offline",
+                    corpo=f"O processo do Telegram caiu inesperadamente às {datetime.datetime.now()}. Reiniciando..."
+                )
+            except:
+                print(f"{Fore.RED}[ SMTP ] Falha ao enviar alerta de crash.")
+                
             return True 
             
     except KeyboardInterrupt:
@@ -113,18 +125,17 @@ if __name__ == "__main__":
     while reiniciar:
         exibir_banner()
         
-        # 🟢 Protocolo de Limpeza Pré-Boot
+        # Limpeza prévia
         stats = obter_stats_sistema()
         if stats['ram'] > 80:
-            print(f"{Fore.MAGENTA}[ AUTO-RECOVERY ] RAM alta detectada. Purgando lixo...")
             purgar_memoria()
-            
         limpar_cache_total()
         
-        # 🟢 Inicia o loop de execução
+        # Inicia o loop e verifica se precisa reiniciar
         reiniciar = executar_nucleo()
         
         if reiniciar:
-            time.sleep(5) # Espera 5 segundos antes de tentar o reboot
+            print(f"{Fore.CYAN}[ REBOOT ] Aguardando 5 segundos para nova tentativa...")
+            time.sleep(5)
 
     print(f"{Fore.CYAN}Sessão {VERSION} Finalizada.")

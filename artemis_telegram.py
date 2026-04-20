@@ -1,9 +1,12 @@
 import os
 import uuid
 import gc
+import telebot
 from colorama import Fore
 from telegram import Update, constants
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from config import TELEGRAM_TOKEN
+from tools import *
 
 # 🟢 Importações centralizadas do seu tools.py
 from tools import (
@@ -21,6 +24,112 @@ USUARIOS_CONHECIDOS = {
     7857654896: "Gab",
     7851501820: "Japa"
 }
+
+# --- 1. INSTANCIAÇÃO (Obrigatório vir antes dos handlers) ---
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
+
+# --- 2. DEFINIÇÃO DE COMANDOS (Handlers) ---
+
+@bot.message_handler(commands=['start', 'ajuda'])
+def cmd_start(message):
+    """Boas-vindas e comandos disponíveis."""
+    boas_vindas = (
+        f"🛡️ <b>{VERSION} Online</b>\n\n"
+        "Comandos disponíveis:\n"
+        "/relatorio - Gera e envia relatório técnico para o e-mail do Criador.\n"
+        "/stats - Exibe o uso de CPU e RAM em tempo real.\n"
+        "Envie uma imagem ou áudio para análise técnica."
+    )
+    bot.reply_to(message, boas_vindas, parse_mode="HTML")
+
+@bot.message_handler(commands=['relatorio'])
+def cmd_enviar_relatorio(message):
+    """Gera um documento Word e envia via SMTP usando credenciais do JSON."""
+    user_id = str(message.from_user.id)
+    
+    # Camada de Autorização (Somente o Søren/ID Admin)
+    if user_id == "8768547953": 
+        bot.reply_to(message, "⚙️ <b>Overseer:</b> Gerando relatório técnico e disparando e-mail...", parse_mode="HTML")
+        
+        # 1. Gera o arquivo usando a lógica do tools.py
+        data_atual = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+        conteudo = f"Relatório de integridade do sistema gerado em {data_atual}.\nStatus: Operacional."
+        caminho_arquivo = criar_word(conteudo)
+        
+        # 2. Dispara o e-mail (A função enviar_email já busca os dados no usuarios.json)
+        sucesso = enviar_email(
+            destinatario="gabriel.orph@gmail.com", 
+            assunto=f"Status Report | {VERSION}", 
+            corpo="Segue em anexo o relatório de integridade gerado pelo sistema.",
+            anexo=caminho_arquivo
+        )
+        
+        if sucesso:
+            bot.send_message(message.chat.id, "✅ E-mail enviado com sucesso para a caixa de entrada cadastrada.")
+        else:
+            bot.send_message(message.chat.id, "❌ Falha no protocolo SMTP. Verifique o console do Overseer.")
+    else:
+        bot.reply_to(message, "⚠️ <b>Acesso Negado:</b> ID de usuário não autorizado para disparos externos.", parse_mode="HTML")
+
+@bot.message_handler(commands=['stats'])
+def cmd_stats(message):
+    """Retorna dados de hardware via Telegram."""
+    diag = obter_stats_sistema()
+    msg = f"📊 <b>Diagnóstico de Hardware</b>\n\nCPU: {diag['cpu']}%\nRAM: {diag['ram']}%"
+    bot.reply_to(message, msg, parse_mode="HTML")
+
+# --- 3. HANDLERS MULTIMIDIA (Visão e Áudio) ---
+
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    """Processa imagens enviadas."""
+    bot.reply_to(message, "👁️ Analisando imagem...")
+    file_info = bot.get_file(message.photo[-1].file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+    
+    with open("temp_vision.jpg", "wb") as f:
+        f.write(downloaded_file)
+    
+    analise = analisar_visao("temp_vision.jpg", eh_criador=True)
+    bot.reply_to(message, analise)
+
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+    """Processa áudios (STT)."""
+    bot.reply_to(message, "🎤 Transcrevendo áudio...")
+    file_info = bot.get_file(message.voice.file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+    
+    caminho_audio = "temp_voice.ogg"
+    with open(caminho_audio, "wb") as f:
+        f.write(downloaded_file)
+        
+    texto = transcrever_audio(caminho_audio)
+    if texto:
+        resposta = pensar(texto, eh_criador=True)
+        bot.reply_to(message, f"💬 <b>Transcrição:</b> {texto}\n\n🤖 <b>Resposta:</b> {resposta}", parse_mode="HTML")
+    else:
+        bot.reply_to(message, "❌ Falha ao processar áudio.")
+
+# --- 4. HANDLER DE TEXTO (IA Pensando) ---
+
+@bot.message_handler(func=lambda message: True)
+def responder(message):
+    """Processa conversas naturais e detecta intenção de e-mail."""
+    texto = message.text.lower()
+    
+    # Atalho por linguagem natural
+    if "mande" in texto and "e-mail" in texto:
+        cmd_enviar_relatorio(message)
+    else:
+        resposta = pensar(message.text, eh_criador=(str(message.from_user.id) == "8768547953"))
+        bot.reply_to(message, resposta)
+
+# --- 5. INICIALIZAÇÃO ---
+
+if __name__ == "__main__":
+    print(f"🚀 {VERSION} Online e aguardando comandos.")
+    bot.polling(none_stop=True)
 
 def escapar_html(texto):
     """Sanitiza strings para evitar erros de renderização no Telegram HTML."""
